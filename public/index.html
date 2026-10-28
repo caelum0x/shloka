@@ -1,0 +1,67 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+<title>Shloka — one verse at a time</title>
+<meta name="description" content="The Bhagavad Gita, one verse per swipe. Sanskrit text, plain-English translation, and context for every shloka." />
+<meta name="theme-color" content="#0b0b0c" />
+<link rel="icon" href="data:," />
+<link rel="stylesheet" href="/style.css" />
+<meta property="og:title" content="Shloka — the Bhagavad Gita, one verse at a time" />
+<meta property="og:description" content="A calm, distraction-free way to read the Gita: one verse per swipe, original Sanskrit, plain-English translation, and context." />
+<meta property="og:type" content="website" />
+</head>
+<body>
+
+<!-- ONBOARDING -->
+<section id="onboarding" class="screen">
+  <div class="onb-wrap">
+    <div class="onb-mark">&#2384;</div>
+    <h1>Shloka</h1>
+    <p class="onb-sub">The Bhagavad Gita. One verse at a time.</p>
+
+    <div class="onb-points">
+      <div class="onb-point">
+        <span class="onb-num">01</span>
+        <p>Swipe up through 701 verses, one shloka per screen — the same motion as any feed you already scroll.</p>
+      </div>
+      <div class="onb-point">
+        <span class="onb-num">02</span>
+        <p>Tap a verse to see the original Sanskrit, its plain-English translation, and the context of the chapter it belongs to.</p>
+      </div>
+      <div class="onb-point">
+        <span class="onb-num">03</span>
+        <p>Save the verses that stay with you. Nothing is tracked, nothing is sold — just text, kept where you left it.</p>
+      </div>
+    </div>
+
+    <button id="startBtn" class="onb-start">Start reading</button>
+    <p class="onb-footnote">Sanskrit text and Annie Besant's 1922 English translation, both in the public domain.</p>
+  </div>
+</section>
+
+<!-- FEED -->
+<main id="feed" class="screen feed-screen" hidden></main>
+
+<!-- DETAIL SHEET -->
+<div id="sheet" class="sheet" hidden>
+  <div class="sheet-backdrop" id="sheetBackdrop"></div>
+  <div class="sheet-panel" role="dialog" aria-modal="true">
+    <button id="sheetClose" class="sheet-close" aria-label="Close">&times;</button>
+    <div class="sheet-scroll">
+      <div class="sheet-kicker"></div>
+      <h2 class="sheet-chapter-title"></h2>
+      <p class="sheet-chapter-summary"></p>
+      <div class="sheet-divider"></div>
+      <div class="sheet-label">Sanskrit</div>
+      <p class="sheet-sanskrit"></p>
+      <div class="sheet-label">Plain English</div>
+      <p class="sheet-translation"></p>
+    </div>
+  </div>
+</div>
+
+<script src="/app.js"></script>
+</body>
+</html>
