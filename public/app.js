@@ -9,6 +9,7 @@
 
   const LS_LIKES = "shloka:likes";
   const LS_NOTES = "shloka:notes";
+  const LS_LAST = "shloka:lastIndex";
 
   const onboarding = document.getElementById("onboarding");
   const startBtn = document.getElementById("startBtn");
@@ -16,13 +17,21 @@
   const sheet = document.getElementById("sheet");
   const sheetBackdrop = document.getElementById("sheetBackdrop");
   const sheetClose = document.getElementById("sheetClose");
+  const browseBtn = document.getElementById("browseBtn");
+  const browse = document.getElementById("browse");
+  const browseClose = document.getElementById("browseClose");
+  const browseSearch = document.getElementById("browseSearch");
+  const browseResults = document.getElementById("browseResults");
+  const browseChapters = document.getElementById("browseChapters");
 
   let verses = [];
+  let chapters = [];
   let renderedCount = 0;
   const BATCH = 16;
   let sentinel = null;
   let io = null;
   let progressBar = null;
+  let savePositionTimer = null;
 
   function loadSet(key) {
     try {
@@ -48,10 +57,25 @@
   const likes = loadSet(LS_LIKES);
   const notes = loadNotes();
 
+  const lastIndexRaw = localStorage.getItem(LS_LAST);
+  if (lastIndexRaw !== null && parseInt(lastIndexRaw, 10) > 0) {
+    startBtn.textContent = "Continue reading";
+  }
+
   async function fetchData() {
     const res = await fetch("/data/gita.json");
     if (!res.ok) throw new Error("failed to load verses");
     return res.json();
+  }
+
+  async function fetchChapters() {
+    try {
+      const res = await fetch("/data/chapters.json");
+      if (!res.ok) return [];
+      return await res.json();
+    } catch (e) {
+      return [];
+    }
   }
 
   function cardHtml(v, idx) {
@@ -134,6 +158,7 @@
         if (e.isIntersecting && e.intersectionRatio > 0.6) {
           const idx = parseInt(e.target.getAttribute("data-idx"), 10);
           updateProgress(idx);
+          saveLastPosition(idx);
         }
       });
     }, { root: feedEl, threshold: [0.6] });
@@ -143,6 +168,24 @@
     if (!progressBar) return;
     const pct = ((idx + 1) / verses.length) * 100;
     progressBar.style.width = pct.toFixed(2) + "%";
+  }
+
+  function saveLastPosition(idx) {
+    clearTimeout(savePositionTimer);
+    savePositionTimer = setTimeout(() => {
+      localStorage.setItem(LS_LAST, String(idx));
+    }, 400);
+  }
+
+  function jumpToIndex(idx) {
+    if (idx == null || idx < 0 || idx >= verses.length) return;
+    while (renderedCount <= idx && renderedCount < verses.length) {
+      renderNextBatch();
+    }
+    requestAnimationFrame(() => {
+      const el = feedEl.querySelector(`.verse-card[data-idx="${idx}"]`);
+      if (el) el.scrollIntoView({ block: "start" });
+    });
   }
 
   function openSheet(id) {
@@ -238,6 +281,83 @@
     toastTimer = setTimeout(() => { el.style.opacity = "0"; }, 1800);
   }
 
+  function renderChapterList() {
+    if (!chapters.length) {
+      browseChapters.innerHTML = `<p class="browse-empty">Chapter list unavailable.</p>`;
+      return;
+    }
+    browseChapters.innerHTML = chapters.map((c) => `
+      <div class="browse-chapter-item" data-chapter="${c.chapter}">
+        <div class="browse-chapter-num">Chapter ${c.chapter} &middot; ${escapeHtml(c.sanskrit_name)}</div>
+        <div class="browse-chapter-title-row">${escapeHtml(c.title)}</div>
+        <p class="browse-chapter-sum">${escapeHtml(truncate(c.summary, 150))}</p>
+      </div>
+    `).join("");
+  }
+
+  function renderSearchResults(query) {
+    const q = query.trim().toLowerCase();
+    if (!q) {
+      browseResults.hidden = true;
+      browseChapters.hidden = false;
+      return;
+    }
+    browseChapters.hidden = true;
+    browseResults.hidden = false;
+    const matches = verses.filter((v) =>
+      v.translation.toLowerCase().includes(q) ||
+      v.sanskrit.toLowerCase().includes(q) ||
+      v.chapterTitle.toLowerCase().includes(q) ||
+      v.chapterSanskritName.toLowerCase().includes(q)
+    ).slice(0, 40);
+    if (!matches.length) {
+      browseResults.innerHTML = `<p class="browse-empty">No verses match "${escapeHtml(query)}".</p>`;
+      return;
+    }
+    browseResults.innerHTML = matches.map((v) => `
+      <div class="browse-result-item" data-id="${v.id}">
+        <div class="browse-result-tag">Chapter ${v.chapter}.${v.verse} &middot; ${escapeHtml(v.chapterTitle)}</div>
+        <p class="browse-result-text">${escapeHtml(truncate(v.translation, 150))}</p>
+      </div>
+    `).join("");
+  }
+
+  function openBrowse() {
+    if (!browseChapters.childElementCount) renderChapterList();
+    browseSearch.value = "";
+    renderSearchResults("");
+    browse.hidden = false;
+    document.body.style.overflow = "hidden";
+    requestAnimationFrame(() => browseSearch.focus());
+  }
+
+  function closeBrowse() {
+    browse.hidden = true;
+    document.body.style.overflow = "";
+  }
+
+  function wireBrowseEvents() {
+    browseBtn.addEventListener("click", openBrowse);
+    browseClose.addEventListener("click", closeBrowse);
+    browseSearch.addEventListener("input", () => renderSearchResults(browseSearch.value));
+    browseChapters.addEventListener("click", (e) => {
+      const item = e.target.closest(".browse-chapter-item");
+      if (!item) return;
+      const chapterNum = parseInt(item.dataset.chapter, 10);
+      let idx = verses.findIndex((v) => v.chapter === chapterNum && v.verse === 1);
+      if (idx < 0) idx = verses.findIndex((v) => v.chapter === chapterNum);
+      closeBrowse();
+      jumpToIndex(idx);
+    });
+    browseResults.addEventListener("click", (e) => {
+      const item = e.target.closest(".browse-result-item");
+      if (!item) return;
+      const idx = verses.findIndex((v) => v.id === item.dataset.id);
+      closeBrowse();
+      jumpToIndex(idx);
+    });
+  }
+
   function wireFeedEvents() {
     feedEl.addEventListener("click", (e) => {
       const likeBtn = e.target.closest(".like-btn");
@@ -269,23 +389,24 @@
       startBtn.disabled = false;
       return;
     }
+    chapters = await fetchChapters();
+
     onboarding.hidden = true;
     feedEl.hidden = false;
+    browseBtn.hidden = false;
     createProgressBar();
     setupObservers();
     wireFeedEvents();
+    wireBrowseEvents();
     renderNextBatch();
 
     const hashId = location.hash.replace("#", "");
     if (hashId) {
       const idx = verses.findIndex((v) => v.id === hashId);
-      if (idx >= 0) {
-        while (renderedCount <= idx) renderNextBatch();
-        requestAnimationFrame(() => {
-          const el = feedEl.querySelector(`.verse-card[data-id="${hashId}"]`);
-          if (el) el.scrollIntoView({ block: "start" });
-        });
-      }
+      if (idx >= 0) jumpToIndex(idx);
+    } else {
+      const lastIdx = parseInt(localStorage.getItem(LS_LAST), 10);
+      if (!Number.isNaN(lastIdx) && lastIdx > 0) jumpToIndex(lastIdx);
     }
   }
 
@@ -293,6 +414,8 @@
   sheetClose.addEventListener("click", closeSheet);
   sheetBackdrop.addEventListener("click", closeSheet);
   document.addEventListener("keydown", (e) => {
-    if (e.key === "Escape" && !sheet.hidden) closeSheet();
+    if (e.key !== "Escape") return;
+    if (!sheet.hidden) closeSheet();
+    if (!browse.hidden) closeBrowse();
   });
 })();

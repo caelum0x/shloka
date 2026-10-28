@@ -44,6 +44,22 @@
 <!-- FEED -->
 <main id="feed" class="screen feed-screen" hidden></main>
 
+<button id="browseBtn" class="browse-btn" hidden aria-label="Search and browse chapters">
+  <svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4.3-4.3"/></svg>
+</button>
+
+<!-- BROWSE / SEARCH OVERLAY -->
+<div id="browse" class="browse-overlay" hidden>
+  <div class="browse-header">
+    <input id="browseSearch" class="browse-search" type="text" placeholder="Search verses, chapters..." autocomplete="off" />
+    <button id="browseClose" class="browse-close" aria-label="Close">&times;</button>
+  </div>
+  <div class="browse-scroll">
+    <div id="browseResults" class="browse-results" hidden></div>
+    <div id="browseChapters" class="browse-chapters"></div>
+  </div>
+</div>
+
 <!-- DETAIL SHEET -->
 <div id="sheet" class="sheet" hidden>
   <div class="sheet-backdrop" id="sheetBackdrop"></div>
