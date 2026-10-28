@@ -342,6 +342,42 @@ html, body {
   text-align: center;
 }
 
+.browse-divider {
+  height: 1px;
+  background: var(--line);
+  margin: 10px 0 20px;
+}
+
+.more-texts {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding-bottom: 6px;
+}
+
+.more-texts-link {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  text-decoration: none;
+  padding: 8px 10px;
+  border-radius: 10px;
+  border: 1px solid var(--line);
+}
+
+.more-texts-link:active { background: rgba(255,255,255,0.05); }
+
+.more-texts-name {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--fg);
+}
+
+.more-texts-desc {
+  font-size: 12px;
+  color: var(--fg-dim);
+}
+
 /* ---------- Detail sheet ---------- */
 .sheet[hidden] {
   display: none !important;

@@ -23,6 +23,7 @@
   const browseSearch = document.getElementById("browseSearch");
   const browseResults = document.getElementById("browseResults");
   const browseChapters = document.getElementById("browseChapters");
+  const browseMoreTexts = document.getElementById("browseMoreTexts");
 
   let verses = [];
   let chapters = [];
@@ -300,10 +301,12 @@
     if (!q) {
       browseResults.hidden = true;
       browseChapters.hidden = false;
+      if (browseMoreTexts) browseMoreTexts.hidden = false;
       return;
     }
     browseChapters.hidden = true;
     browseResults.hidden = false;
+    if (browseMoreTexts) browseMoreTexts.hidden = true;
     const matches = verses.filter((v) =>
       v.translation.toLowerCase().includes(q) ||
       v.sanskrit.toLowerCase().includes(q) ||
