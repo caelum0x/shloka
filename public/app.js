@@ -60,8 +60,17 @@
     localStorage.setItem(LS_NOTES, JSON.stringify(notes));
   }
 
-  const likes = loadSet(LS_LIKES);
-  const notes = loadNotes();
+  // `likes`/`notes` are reassigned (not const) because every write path below
+  // re-reads localStorage immediately before mutating it. The app can be open
+  // in more than one tab/window at once (e.g. installed PWA window + a
+  // leftover browser tab) — each loads its own in-memory snapshot at page
+  // load, and a write from tab B that blindly serializes its stale snapshot
+  // silently erases anything tab A already persisted (confirmed live:
+  // like verse 1.1 in tab A, then like a different verse in tab B — tab A's
+  // like vanished from localStorage). Re-reading right before each write
+  // shrinks that race from "whole session" to milliseconds.
+  let likes = loadSet(LS_LIKES);
+  let notes = loadNotes();
 
   const lastIndexRaw = localStorage.getItem(LS_LAST);
   if (lastIndexRaw !== null && parseInt(lastIndexRaw, 10) > 0) {
@@ -302,6 +311,7 @@
     const textarea = noteWrap.querySelector(".sheet-note");
     textarea.value = notes[id] || "";
     textarea.oninput = () => {
+      notes = loadNotes(); // re-read fresh so a concurrent tab's note isn't clobbered
       const val = textarea.value;
       if (val.trim()) notes[id] = val; else delete notes[id];
       saveNotes(notes);
@@ -319,6 +329,7 @@
   }
 
   function toggleLike(id) {
+    likes = loadSet(LS_LIKES); // re-read fresh so a concurrent tab's like isn't clobbered
     if (likes.has(id)) likes.delete(id); else likes.add(id);
     saveSet(LS_LIKES, likes);
     const btn = feedEl.querySelector(`.like-btn[data-id="${id}"]`);
@@ -522,6 +533,7 @@
     const removeBtn = e.target.closest(".kept-row-remove");
     if (removeBtn) {
       if (removeBtn.dataset.noteId) {
+        notes = loadNotes(); // re-read fresh so a concurrent tab's note isn't clobbered
         delete notes[removeBtn.dataset.noteId];
         saveNotes(notes);
         const noteCountBtn = feedEl.querySelector(`.note-btn[data-id="${removeBtn.dataset.noteId}"] .action-count`);
@@ -553,6 +565,29 @@
     if (!sheet.hidden) closeSheet();
     if (!browse.hidden) closeBrowse();
     if (!keptSheet.hidden) closeKeptSheet();
+  });
+
+  // Picks up likes/notes written by another tab/window of this same app so
+  // this tab's UI (and its own next write) never works from a stale snapshot.
+  window.addEventListener("storage", (e) => {
+    if (e.key === LS_LIKES) {
+      likes = loadSet(LS_LIKES);
+      feedEl.querySelectorAll(".like-btn").forEach((btn) => {
+        const liked = likes.has(btn.dataset.id);
+        btn.classList.toggle("liked", liked);
+        const count = btn.querySelector(".action-count");
+        if (count) count.textContent = liked ? "Saved" : "Like";
+      });
+      updateKeptCount();
+      if (!keptSheet.hidden) renderKeptList();
+    } else if (e.key === LS_NOTES) {
+      notes = loadNotes();
+      feedEl.querySelectorAll(".note-btn").forEach((btn) => {
+        const count = btn.querySelector(".action-count");
+        if (count) count.textContent = notes[btn.dataset.id] ? "Noted" : "Note";
+      });
+      if (!keptSheet.hidden) renderKeptList();
+    }
   });
 
   if (hasDeepLinkHash) start();
