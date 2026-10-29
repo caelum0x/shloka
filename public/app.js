@@ -68,6 +68,16 @@
     startBtn.textContent = "Continue reading";
   }
 
+  // A shared verse (`shareVerse()` below) produces a link like
+  // `https://shloka.ereboslab.com/#3.19`. Previously, opening that link cold
+  // still forced the recipient through the onboarding screen and a manual
+  // "Start reading" tap before they ever saw the verse that was actually
+  // shared with them — the deep link only "worked" after an extra step,
+  // undermining the app's main stated growth lever (shares). If the URL
+  // already carries a verse hash on first load, skip onboarding and jump
+  // straight into the feed at that verse.
+  const hasDeepLinkHash = /^#?\d+\.\d+$/.test(location.hash);
+
   async function fetchData() {
     const res = await fetch("/data/gita.json");
     if (!res.ok) throw new Error("failed to load verses");
@@ -495,4 +505,6 @@
     if (!browse.hidden) closeBrowse();
     if (!keptSheet.hidden) closeKeptSheet();
   });
+
+  if (hasDeepLinkHash) start();
 })();
