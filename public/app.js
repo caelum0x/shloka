@@ -287,9 +287,11 @@
     document.body.style.overflow = "";
   }
 
+  let openSheetId = null;
   function openSheet(id) {
     const v = verses.find((x) => x.id === id);
     if (!v) return;
+    openSheetId = id;
     sheet.querySelector(".sheet-kicker").textContent =
       `Chapter ${v.chapter} · Verse ${v.verse} · ${v.chapterSanskritName}`;
     sheet.querySelector(".sheet-chapter-title").textContent = v.chapterTitle;
@@ -326,6 +328,7 @@
   function closeSheet() {
     sheet.hidden = true;
     document.body.style.overflow = "";
+    openSheetId = null;
   }
 
   function toggleLike(id) {
@@ -587,6 +590,17 @@
         if (count) count.textContent = notes[btn.dataset.id] ? "Noted" : "Note";
       });
       if (!keptSheet.hidden) renderKeptList();
+      // If the detail sheet is open on the exact verse another tab just
+      // edited/deleted a note for, resync its textarea too — otherwise this
+      // tab's stale, still-open value would silently resurrect a note the
+      // other tab just deleted on this tab's very next keystroke (confirmed
+      // live: tab B deletes a note via the Kept sheet, tab A still has that
+      // same verse's note field open from before the delete, tab A types one
+      // more character and the "deleted" note reappears in localStorage).
+      if (!sheet.hidden && openSheetId != null) {
+        const textarea = sheet.querySelector(".sheet-note");
+        if (textarea) textarea.value = notes[openSheetId] || "";
+      }
     }
   });
 
