@@ -46,8 +46,31 @@
       return new Set();
     }
   }
+  // All three localStorage *write* sites below (saveSet, saveNotes, and the
+  // lastIndex write in saveLastPosition further down) previously called
+  // localStorage.setItem with no error handling at all, unlike every read
+  // site in this file which already has a try/catch. Reproduced live: fill
+  // localStorage to its real quota (e.g. a browser with a small per-origin
+  // quota, a long-time user who has written many/large private notes, or
+  // Safari private-browsing's drastically reduced quota), then tap the heart
+  // or type a note — localStorage.setItem throws an uncaught
+  // QuotaExceededError *inside* toggleLike()/the note textarea's oninput
+  // handler, aborting the rest of that function. Confirmed effects: the like
+  // never toggles visually (the UI-update code after the throwing line never
+  // runs), the note is silently never written to localStorage at all, and
+  // there is zero user-facing feedback — the feature just appears to do
+  // nothing, with the only trace being a console error nobody but a
+  // developer would ever see. Wrapping each write and surfacing the existing
+  // toast() helper on failure turns a silent, confusing full data-loss case
+  // into a save that still fails (storage really is full, nothing can make
+  // that succeed) but tells the user why, and lets the rest of each caller's
+  // UI-update code keep running instead of being aborted mid-function.
   function saveSet(key, set) {
-    localStorage.setItem(key, JSON.stringify([...set]));
+    try {
+      localStorage.setItem(key, JSON.stringify([...set]));
+    } catch (e) {
+      toast("Could not save — storage full");
+    }
   }
   function loadNotes() {
     try {
@@ -57,7 +80,11 @@
     }
   }
   function saveNotes(notes) {
-    localStorage.setItem(LS_NOTES, JSON.stringify(notes));
+    try {
+      localStorage.setItem(LS_NOTES, JSON.stringify(notes));
+    } catch (e) {
+      toast("Could not save — storage full");
+    }
   }
 
   // `likes`/`notes` are reassigned (not const) because every write path below
@@ -198,7 +225,13 @@
   function saveLastPosition(idx) {
     clearTimeout(savePositionTimer);
     savePositionTimer = setTimeout(() => {
-      localStorage.setItem(LS_LAST, String(idx));
+      // Resume position is a background nicety, not a user-initiated save
+      // like a like/note — fail silently (no toast) rather than spamming a
+      // toast on every scroll tick while storage stays full; the like/note
+      // write sites above are where storage-full feedback actually matters.
+      try {
+        localStorage.setItem(LS_LAST, String(idx));
+      } catch (e) { /* storage full — resume position just won't update */ }
     }, 400);
   }
 
