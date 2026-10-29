@@ -210,28 +210,57 @@
   // (same real gap already found and fixed on sibling app Pasuk). This renders
   // every currently-kept verse (resolved live against `likes`) so a saved
   // verse can be reopened or un-kept without re-scrolling the whole feed.
+  //
+  // The exact same write-only gap existed for private notes (notes[] has been
+  // readable/writable from inside the detail sheet since the original build,
+  // but nothing ever listed them back) — a note written on verse 300 was
+  // effectively lost until the user manually re-scrolled through all 701
+  // verses to find it again. This sheet now also lists every noted verse
+  // (independent of liked state) so notes are actually revisitable.
   function renderKeptList() {
     const kept = verses
       .map((v, idx) => ({ v, idx }))
       .filter(({ v }) => likes.has(v.id));
+    const noted = verses
+      .map((v, idx) => ({ v, idx }))
+      .filter(({ v }) => !!notes[v.id]);
 
-    if (kept.length === 0) {
-      keptListEl.innerHTML = `<p class="kept-empty">No kept verses yet — tap the heart on any verse to save it here.</p>`;
+    if (kept.length === 0 && noted.length === 0) {
+      keptListEl.innerHTML = `<p class="kept-empty">No kept verses or notes yet — tap the heart or note icon on any verse to save it here.</p>`;
       return;
     }
 
-    keptListEl.innerHTML = kept
-      .map(
-        ({ v, idx }) => `
-      <div class="kept-row">
-        <button class="kept-row-main" data-idx="${idx}">
-          <span class="kept-row-tag">Chapter ${v.chapter}.${v.verse} &middot; ${escapeHtml(v.chapterTitle)}</span>
-          <span class="kept-row-text">${escapeHtml(truncate(v.translation, 110))}</span>
-        </button>
-        <button class="kept-row-remove" data-id="${v.id}" aria-label="Remove from kept">&times;</button>
-      </div>`
-      )
-      .join("");
+    let html = "";
+    if (kept.length) {
+      html += kept
+        .map(
+          ({ v, idx }) => `
+        <div class="kept-row">
+          <button class="kept-row-main" data-idx="${idx}">
+            <span class="kept-row-tag">Chapter ${v.chapter}.${v.verse} &middot; ${escapeHtml(v.chapterTitle)}</span>
+            <span class="kept-row-text">${escapeHtml(truncate(v.translation, 110))}</span>
+          </button>
+          <button class="kept-row-remove" data-id="${v.id}" aria-label="Remove from kept">&times;</button>
+        </div>`
+        )
+        .join("");
+    }
+    if (noted.length) {
+      html += `<div class="kept-section-label">Your notes</div>`;
+      html += noted
+        .map(
+          ({ v, idx }) => `
+        <div class="kept-row">
+          <button class="noted-row-main" data-idx="${idx}" data-id="${v.id}">
+            <span class="kept-row-tag">Chapter ${v.chapter}.${v.verse} &middot; ${escapeHtml(v.chapterTitle)}</span>
+            <span class="kept-row-text">${escapeHtml(truncate(notes[v.id], 110))}</span>
+          </button>
+          <button class="kept-row-remove" data-note-id="${v.id}" aria-label="Delete note">&times;</button>
+        </div>`
+        )
+        .join("");
+    }
+    keptListEl.innerHTML = html;
   }
 
   function updateKeptCount() {
@@ -491,7 +520,27 @@
   keptBackdrop.addEventListener("click", closeKeptSheet);
   keptListEl.addEventListener("click", (e) => {
     const removeBtn = e.target.closest(".kept-row-remove");
-    if (removeBtn) { toggleLike(removeBtn.dataset.id); return; }
+    if (removeBtn) {
+      if (removeBtn.dataset.noteId) {
+        delete notes[removeBtn.dataset.noteId];
+        saveNotes(notes);
+        const noteCountBtn = feedEl.querySelector(`.note-btn[data-id="${removeBtn.dataset.noteId}"] .action-count`);
+        if (noteCountBtn) noteCountBtn.textContent = "Note";
+        renderKeptList();
+      } else {
+        toggleLike(removeBtn.dataset.id);
+      }
+      return;
+    }
+    const notedRow = e.target.closest(".noted-row-main");
+    if (notedRow) {
+      const idx = parseInt(notedRow.dataset.idx, 10);
+      const id = notedRow.dataset.id;
+      closeKeptSheet();
+      jumpToIndex(idx);
+      openSheet(id);
+      return;
+    }
     const row = e.target.closest(".kept-row-main");
     if (row) {
       const idx = parseInt(row.dataset.idx, 10);

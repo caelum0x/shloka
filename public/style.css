@@ -317,6 +317,31 @@ html, body {
 
 .kept-row-remove:active { color: var(--fg); }
 
+.kept-section-label {
+  font-size: 10.5px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--fg-faint);
+  margin: 18px 0 8px;
+}
+
+.noted-row-main {
+  flex: 1;
+  min-width: 0;
+  text-align: left;
+  background: none;
+  border: none;
+  color: var(--fg);
+  cursor: pointer;
+  padding: 0;
+  font-family: inherit;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.noted-row-main:active { opacity: 0.8; }
+
 /* ---------- Browse / search ---------- */
 .browse-btn {
   position: fixed;
