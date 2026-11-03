@@ -11,6 +11,9 @@
   const LS_LIKES = "shloka:likes";
   const LS_NOTES = "shloka:notes";
   const LS_LAST = "shloka:lastIndex";
+  const LS_TEXTSCALE = "shloka:textScale";
+  const TEXT_SCALE_STEPS = [0.85, 1, 1.15, 1.3, 1.45];
+  const TEXT_SCALE_DEFAULT_INDEX = 1;
 
   const onboarding = document.getElementById("onboarding");
   const startBtn = document.getElementById("startBtn");
@@ -19,6 +22,7 @@
   const sheetBackdrop = document.getElementById("sheetBackdrop");
   const sheetClose = document.getElementById("sheetClose");
   const browseBtn = document.getElementById("browseBtn");
+  const textSizeBtn = document.getElementById("textSizeBtn");
   const browse = document.getElementById("browse");
   const browseClose = document.getElementById("browseClose");
   const browseSearch = document.getElementById("browseSearch");
@@ -104,6 +108,46 @@
   if (lastIndexRaw !== null && parseInt(lastIndexRaw, 10) > 0) {
     startBtn.textContent = "Continue reading";
   }
+
+  // ---------- Adjustable reading text size ----------
+  // The Sanskrit/translation text (both on the feed card and inside the
+  // detail sheet) was always rendered at a single fixed font size, with no
+  // way for a reader to make it bigger or smaller — a real accessibility and
+  // comfort gap for a text-heavy reading app (same gap already closed on
+  // sibling native app Ayah/Shloka-mobile with an "Aa" control). Cycles
+  // through a small set of steps and applies them via a CSS custom property
+  // so every verse card (including ones not rendered yet by the infinite
+  // scroll) and the detail sheet pick it up automatically with no per-card
+  // re-render needed.
+  function loadTextScaleIndex() {
+    const raw = parseInt(localStorage.getItem(LS_TEXTSCALE), 10);
+    if (Number.isInteger(raw) && raw >= 0 && raw < TEXT_SCALE_STEPS.length) return raw;
+    return TEXT_SCALE_DEFAULT_INDEX;
+  }
+
+  function saveTextScaleIndex(idx) {
+    try {
+      localStorage.setItem(LS_TEXTSCALE, String(idx));
+    } catch (e) { /* storage full — text size just won't persist across visits */ }
+  }
+
+  let textScaleIndex = loadTextScaleIndex();
+
+  function applyTextScale() {
+    const scale = TEXT_SCALE_STEPS[textScaleIndex];
+    document.documentElement.style.setProperty("--text-scale", String(scale));
+    const pct = Math.round(scale * 100);
+    textSizeBtn.setAttribute("aria-label", `Text size, ${pct}%`);
+    textSizeBtn.classList.toggle("active", textScaleIndex !== TEXT_SCALE_DEFAULT_INDEX);
+  }
+
+  function cycleTextScale() {
+    textScaleIndex = (textScaleIndex + 1) % TEXT_SCALE_STEPS.length;
+    saveTextScaleIndex(textScaleIndex);
+    applyTextScale();
+  }
+
+  applyTextScale();
 
   // A shared verse (`shareVerse()` below) produces a link like
   // `https://shloka.ereboslab.com/#3.19`. Previously, opening that link cold
@@ -588,6 +632,7 @@
     onboarding.hidden = true;
     feedEl.hidden = false;
     browseBtn.hidden = false;
+    textSizeBtn.hidden = false;
     createProgressBar();
     setupObservers();
     wireFeedEvents();
@@ -605,6 +650,7 @@
   }
 
   startBtn.addEventListener("click", start);
+  textSizeBtn.addEventListener("click", cycleTextScale);
   sheetClose.addEventListener("click", closeSheet);
   sheetBackdrop.addEventListener("click", closeSheet);
   keptClose.addEventListener("click", closeKeptSheet);
